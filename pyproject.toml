@@ -1,0 +1,34 @@
+[tool.ruff]
+# Включаем правила для импортов
+fix = true
+exclude = ["README.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "C90"]
+
+[tool.ruff.lint.isort]
+# Настройки для сортировки импортов
+force-single-line = false
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+# Настройки pytest
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings"
+]
+markers = [
+    "e2e: end-to-end тесты (медленные, полные сценарии)",
+    "integration: интеграционные тесты (взаимодействие компонентов)",
+    "unit: модульные тесты (отдельные компоненты)"
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
