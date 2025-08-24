@@ -58,21 +58,36 @@ async def check_refresh_token(
     token: str = Depends(get_refresh_token),
     session: AsyncSession = Depends(get_session_without_commit),
 ) -> User:
-    """Проверяет refresh_token и возвращает пользователя.
+    """Проверяет refresh_token и возвращает пользователя с расширенной валидацией.
+
+    Выполняет полную валидацию refresh токена включая:
+    - Проверку подписи с помощью секретного ключа
+    - Валидацию алгоритма подписи
+    - Проверку издателя (issuer) токена
+    - Проверку аудитории (audience) токена
+    - Проверку существования пользователя в базе данных
 
     Args:
-        token: Refresh токен для проверки.
-        session: Сессия базы данных.
+        token: Refresh токен, извлеченный из HTTP cookies.
+        session: Асинхронная сессия SQLAlchemy для работы с БД.
 
     Returns:
-        User: Пользователь, связанный с токеном.
+        User: Объект пользователя из базы данных, связанный с токеном.
 
     Raises:
-        NoJwtException: Если токен недействителен или пользователь не найден.
+        NoJwtException: При любых ошибках валидации токена или если
+                       пользователь не найден в базе данных.
+
+    Note:
+        Использует настройки из settings.jwt для проверки токена.
     """
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token,
+            settings.jwt.secret_key,
+            algorithms=[settings.jwt.algorithm],
+            audience=settings.jwt.audience,  # Проверяем аудиторию
+            issuer=settings.jwt.issuer,  # Проверяем издателя
         )
         user_id = payload.get("sub")
         if not user_id:
@@ -91,25 +106,42 @@ async def get_current_user(
     token: str = Depends(get_access_token),
     session: AsyncSession = Depends(get_session_without_commit),
 ) -> User:
-    """Проверяет access_token и возвращает пользователя.
+    """Проверяет access_token и возвращает текущего пользователя с полной валидацией.
+
+    Выполняет комплексную проверку access токена:
+    - Декодирование с проверкой подписи, алгоритма, издателя и аудитории
+    - Проверку времени истечения токена (exp claim)
+    - Извлечение и валидацию ID пользователя (sub claim)
+    - Поиск пользователя в базе данных
+
+    Функция используется как dependency для защищенных эндпоинтов API.
 
     Args:
-        token: Access токен для проверки.
-        session: Сессия базы данных.
+        token: Access токен, извлеченный из HTTP cookies.
+        session: Асинхронная сессия SQLAlchemy для работы с БД.
 
     Returns:
-        User: Текущий пользователь.
+        User: Объект текущего аутентифицированного пользователя.
 
     Raises:
-        TokenExpiredException: Если токен истек.
-        NoJwtException: Если токен недействителен.
-        NoUserIdException: Если ID пользователя отсутствует в токене.
-        UserNotFoundException: Если пользователь не найден.
+        TokenExpiredException: Если токен истек (проверяется дважды -
+                              автоматически при декодировании и вручную).
+        NoJwtException: При ошибках валидации токена (неверная подпись,
+                       алгоритм, издатель, аудитория).
+        NoUserIdException: Если в токене отсутствует ID пользователя (sub claim).
+        UserNotFoundException: Если пользователь не найден в базе данных.
+
+    Note:
+        Использует конфигурацию из settings.jwt для всех проверок безопасности.
     """
     try:
-        # Декодируем токен
+        # Декодируем токен с дополнительными проверками
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token,
+            settings.jwt.secret_key,
+            algorithms=[settings.jwt.algorithm],
+            audience=settings.jwt.audience,  # Проверяем аудиторию
+            issuer=settings.jwt.issuer,  # Проверяем издателя
         )
     except ExpiredSignatureError:
         raise TokenExpiredException

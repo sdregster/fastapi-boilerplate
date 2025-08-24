@@ -6,11 +6,15 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.config import database_url
+from app.config import settings
 from app.dao.database import Base
 
 config = context.config
+
+# Используем настройки из новой конфигурации
+database_url = str(settings.db.url)
 config.set_main_option("sqlalchemy.url", database_url)
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -33,6 +37,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        # PostgreSQL специфичные настройки
+        compare_type=True,
+        compare_server_default=True,
     )
 
     with context.begin_transaction():
@@ -45,7 +52,13 @@ def do_run_migrations(connection: Connection) -> None:
     Args:
         connection: Соединение с базой данных.
     """
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        # PostgreSQL специфичные настройки
+        compare_type=True,
+        compare_server_default=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -58,8 +71,12 @@ async def run_async_migrations() -> None:
     соединение с контекстом.
     """
 
+    # Настройки для PostgreSQL
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = database_url
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

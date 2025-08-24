@@ -33,13 +33,13 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=50), unique=True, nullable=False),
         sa.Column(
             "created_at",
-            sa.TIMESTAMP(),
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMP(),
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
@@ -81,13 +81,13 @@ def upgrade() -> None:
         ),
         sa.Column(
             "created_at",
-            sa.TIMESTAMP(),
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMP(),
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
