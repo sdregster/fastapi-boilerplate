@@ -3,11 +3,29 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class RunConfig(BaseModel):
+    """Настройки запуска приложения.
+
+    Attributes:
+        host: Хост для запуска приложения.
+        port: Порт для запуска приложения.
+    """
+
     host: str = "0.0.0.0"
     port: int = 8000
 
 
 class DatabaseConfig(BaseModel):
+    """Конфигурация базы данных.
+
+    Attributes:
+        url: URL подключения к базе данных.
+        echo: Включение/выключение SQL логирования.
+        echo_pool: Включение/выключение логирования пула соединений.
+        pool_size: Размер пула соединений.
+        max_overflow: Максимальное количество дополнительных соединений.
+        naming_convention: Конвенции именования для базы данных.
+    """
+
     url: PostgresDsn
     echo: bool = False
     echo_pool: bool = False
@@ -23,24 +41,31 @@ class DatabaseConfig(BaseModel):
     }
 
 
-class JwtConfig(BaseModel):
-    """Конфигурация для JWT токенов с расширенными настройками безопасности.
+class LoggingConfig(BaseModel):
+    """Конфигурация для логирования приложения.
 
-    Класс содержит все настройки для создания и валидации JWT токенов,
-    включая время жизни, алгоритмы подписи и дополнительные поля безопасности.
+    Attributes:
+        level: Уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        format: Формат сообщений логов.
+        directory: Папка для хранения логов.
+        max_size: Максимальный размер файла лога в мегабайтах.
+        backup_count: Количество файлов бэкапа для ротации логов.
+        console_output: Включение/выключение вывода логов в консоль.
+        file_output: Включение/выключение записи логов в файлы.
     """
 
-    secret_key: str  # Секретный ключ для подписи токенов (обязательно из .env)
-    algorithm: str = "HS256"  # Алгоритм подписи (рекомендуется HS256)
-
-    # Настройки времени жизни токенов
-    access_token_expire_minutes: int = 30  # Время жизни access токена в минутах
-    refresh_token_expire_days: int = 7  # Время жизни refresh токена в днях
-
-    # Дополнительные настройки безопасности (JWT claims)
-    token_type: str = "Bearer"  # Тип токена для Authorization заголовка
-    issuer: str = "fastapi-auth-app"  # Издатель токена (iss claim)
-    audience: str = "fastapi-auth-users"  # Аудитория токена (aud claim)
+    level: str = "INFO"
+    format: str = (
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>"
+    )
+    directory: str = "logs"
+    max_size: int = 10  # MB
+    backup_count: int = 5
+    console_output: bool = True
+    file_output: bool = True
 
 
 class Settings(BaseSettings):
@@ -52,14 +77,17 @@ class Settings(BaseSettings):
     Attributes:
         run: Настройки запуска приложения (хост, порт).
         db: Конфигурация базы данных (URL, пулы соединений).
-        jwt: Настройки JWT токенов (ключи, время жизни, безопасность).
+        logging: Настройки логирования (уровень, формат, папка).
 
     Environment Variables:
         Используется префикс APP_CONFIG__ и разделитель __ для вложенности:
         - APP_CONFIG__DB__URL: URL базы данных
-        - APP_CONFIG__JWT__SECRET_KEY: секретный ключ для JWT
-        - APP_CONFIG__JWT__ACCESS_TOKEN_EXPIRE_MINUTES: время жизни access токена
-        и т.д.
+        - APP_CONFIG__RUN__HOST: хост для запуска
+        - APP_CONFIG__RUN__PORT: порт для запуска
+        - APP_CONFIG__LOGGING__LEVEL: уровень логирования
+        - APP_CONFIG__LOGGING__DIRECTORY: папка для логов
+        - APP_CONFIG__LOGGING__MAX_SIZE: максимальный размер файла лога
+        - APP_CONFIG__LOGGING__BACKUP_COUNT: количество файлов бэкапа
 
     Config Files:
         Загружает настройки из файлов в порядке приоритета:
@@ -72,11 +100,12 @@ class Settings(BaseSettings):
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="APP_CONFIG__",
+        extra="ignore",  # Игнорируем лишние поля из .env файла
     )
 
     run: RunConfig = RunConfig()
     db: DatabaseConfig
-    jwt: JwtConfig
+    logging: LoggingConfig = LoggingConfig()
 
 
 settings = Settings()

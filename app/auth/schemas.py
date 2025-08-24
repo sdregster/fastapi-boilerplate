@@ -38,10 +38,10 @@ class UserBase(EmailModel):
         description="Номер телефона в международном формате, начинающийся с '+'"
     )
     first_name: str = Field(
-        min_length=3, max_length=50, description="Имя, от 3 до 50 символов"
+        min_length=2, max_length=50, description="Имя, от 2 до 50 символов"
     )
     last_name: str = Field(
-        min_length=3, max_length=50, description="Фамилия, от 3 до 50 символов"
+        min_length=2, max_length=50, description="Фамилия, от 2 до 50 символов"
     )
 
     @field_validator("phone_number")
@@ -73,10 +73,10 @@ class SUserRegister(UserBase):
     """
 
     password: str = Field(
-        min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков"
+        min_length=4, max_length=50, description="Пароль, от 4 до 50 знаков"
     )
     confirm_password: str = Field(
-        min_length=5, max_length=50, description="Повторите пароль"
+        min_length=4, max_length=50, description="Повторите пароль"
     )
 
     @model_validator(mode="after")
@@ -115,7 +115,7 @@ class SUserAuth(EmailModel):
     """
 
     password: str = Field(
-        min_length=5, max_length=50, description="Пароль, от 5 до 50 знаков"
+        min_length=4, max_length=50, description="Пароль, от 4 до 50 знаков"
     )
 
 

@@ -1,3 +1,6 @@
-from .case_converter import camel_case_to_snake_case
+"""Утилиты приложения."""
 
-__all__ = ["camel_case_to_snake_case"]
+from .case_converter import camel_case_to_snake_case
+from .logger import get_logger, setup_logging
+
+__all__ = ["camel_case_to_snake_case", "get_logger", "setup_logging"]

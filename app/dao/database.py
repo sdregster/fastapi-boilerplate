@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 
-from app.config import NAMING_CONVENTION, database_url
+from app.config import settings
 from app.dao.mixins import BaseMixin, IdMixin, TimestampMixin
 from app.utils import camel_case_to_snake_case
 
-engine = create_async_engine(url=database_url)
+engine = create_async_engine(url=str(settings.db.url))
 async_session_maker = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -28,7 +28,7 @@ class Base(AsyncAttrs, DeclarativeBase, IdMixin, TimestampMixin, BaseMixin):
 
     __abstract__ = True
 
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    metadata = MetaData(naming_convention=settings.db.naming_convention)
 
     @declared_attr
     def __tablename__(cls) -> str:

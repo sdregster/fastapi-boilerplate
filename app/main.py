@@ -5,9 +5,11 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
-from loguru import logger
 
 from app.auth.router import router as router_auth
+from app.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -20,9 +22,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     Yields:
         dict: Контекст жизненного цикла.
     """
-    logger.info("Инициализация приложения...")
+    logger.info("🚀 Инициализация приложения FastAPI...")
+    log_dir = app.state.log_dir if hasattr(app.state, "log_dir") else "logs/"
+    logger.info(f"📁 Папка для логов: {log_dir}")
     yield
-    logger.info("Завершение работы приложения...")
+    logger.info("🛑 Завершение работы приложения FastAPI...")
 
 
 def create_app() -> FastAPI:
@@ -31,6 +35,8 @@ def create_app() -> FastAPI:
     Returns:
         FastAPI: Сконфигурированное приложение FastAPI.
     """
+    logger.info("🔧 Создание FastAPI приложения...")
+
     app = FastAPI(
         title="Стартовая сборка FastAPI",
         description=(
@@ -51,12 +57,15 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    logger.debug("✅ CORS middleware настроен")
 
     # Монтирование статических файлов
     app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    logger.debug("✅ Статические файлы подключены")
 
     # Регистрация роутеров
     register_routers(app)
+    logger.debug("✅ Роутеры зарегистрированы")
 
     return app
 
@@ -77,12 +86,15 @@ def register_routers(app: FastAPI) -> None:
         Returns:
             dict: Приветственное сообщение.
         """
+        logger.debug("📄 Запрос главной страницы")
         return {"message": "Hello World"}
 
     # Подключение роутеров
     app.include_router(root_router, tags=["root"])
     app.include_router(router_auth, prefix="/auth", tags=["Auth"])
+    logger.info("🔗 Роутеры подключены: root, auth")
 
 
 # Создание экземпляра приложения
 app = create_app()
+logger.info("🎉 FastAPI приложение успешно создано и готово к работе!")

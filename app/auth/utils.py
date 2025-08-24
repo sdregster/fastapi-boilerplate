@@ -1,80 +1,67 @@
-from datetime import datetime, timedelta, timezone
+import base64
+from typing import Optional, Tuple
 
-from fastapi.responses import Response
-from jose import jwt
+from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
-from app.config import settings
+from app.utils import get_logger
+
+logger = get_logger(__name__)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_tokens(data: dict) -> dict:
-    """Создает access и refresh токены для пользователя с конфигурируемыми настройками.
-
-    Функция создает два типа JWT токенов:
-    - Access токен: используется для доступа к защищенным ресурсам
-    - Refresh токен: используется для обновления access токенов
-
-    Время жизни токенов и дополнительные поля безопасности настраиваются
-    через переменные окружения в settings.jwt.
-
-    Добавляемые поля в токен:
-    - exp: время истечения токена (timestamp)
-    - type: тип токена ('access' или 'refresh')
-    - iat: время создания токена (timestamp)
-    - iss: издатель токена (из настроек)
-    - aud: аудитория токена (из настроек)
+def decode_basic_auth(authorization_header: str) -> Tuple[str, str]:
+    """Декодирует заголовок Basic Auth и возвращает username и password.
 
     Args:
-        data: Данные пользователя для включения в токен (обычно {'sub': user_id}).
+        authorization_header: Заголовок Authorization в формате "Basic base64".
 
     Returns:
-        dict: Словарь с ключами 'access_token' и 'refresh_token',
-              содержащими подписанные JWT строки.
+        Tuple[str, str]: Кортеж (username, password).
 
-    Example:
-        >>> tokens = create_tokens({"sub": "123"})
-        >>> print(tokens)
-        {'access_token': 'eyJ...', 'refresh_token': 'eyJ...'}
+    Raises:
+        HTTPException: Если заголовок некорректен или не содержит Basic Auth.
     """
-    # Текущее время в UTC
-    now = datetime.now(timezone.utc)
+    try:
+        if not authorization_header.startswith("Basic "):
+            logger.warning(
+                "Попытка аутентификации с некорректным заголовком Authorization"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Требуется Basic аутентификация",
+                headers={"WWW-Authenticate": "Basic"},
+            )
 
-    # AccessToken - настраиваемое время жизни
-    access_expire = now + timedelta(minutes=settings.jwt.access_token_expire_minutes)
-    access_payload = data.copy()
-    access_payload.update(
-        {
-            "exp": int(access_expire.timestamp()),
-            "type": "access",
-            "iat": int(now.timestamp()),  # Время создания токена
-            "iss": settings.jwt.issuer,  # Издатель токена
-            "aud": settings.jwt.audience,  # Аудитория токена
-        }
-    )
-    access_token = jwt.encode(
-        access_payload, settings.jwt.secret_key, algorithm=settings.jwt.algorithm
-    )
+        # Убираем "Basic " и декодируем base64
+        encoded_credentials = authorization_header[6:]
+        decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
 
-    # RefreshToken - настраиваемое время жизни
-    refresh_expire = now + timedelta(days=settings.jwt.refresh_token_expire_days)
-    refresh_payload = data.copy()
-    refresh_payload.update(
-        {
-            "exp": int(refresh_expire.timestamp()),
-            "type": "refresh",
-            "iat": int(now.timestamp()),  # Время создания токена
-            "iss": settings.jwt.issuer,  # Издатель токена
-            "aud": settings.jwt.audience,  # Аудитория токена
-        }
-    )
-    refresh_token = jwt.encode(
-        refresh_payload, settings.jwt.secret_key, algorithm=settings.jwt.algorithm
-    )
+        # Разделяем username:password
+        if ":" not in decoded_credentials:
+            logger.warning(
+                "Попытка аутентификации с некорректным форматом учетных данных"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Некорректный формат учетных данных",
+                headers={"WWW-Authenticate": "Basic"},
+            )
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
+        username, password = decoded_credentials.split(":", 1)
+        logger.debug(f"Попытка аутентификации для пользователя: {username}")
+        return username, password
+
+    except (base64.binascii.Error, UnicodeDecodeError):
+        logger.error("Ошибка декодирования Basic Auth заголовка")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Некорректно закодированные учетные данные",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 
-async def authenticate_user(user, password):
+async def authenticate_user(user, password: str) -> Optional[object]:
     """Аутентифицирует пользователя по паролю.
 
     Args:
@@ -82,60 +69,23 @@ async def authenticate_user(user, password):
         password: Пароль для проверки.
 
     Returns:
-        User | None: Пользователь при успешной аутентификации, None в противном случае.
+        object | None: Пользователь при успешной аутентификации, None в противном случае
     """
     if (
         not user
         or verify_password(plain_password=password, hashed_password=user.password)
         is False
     ):
+        user_email = getattr(user, "email", "unknown")
+        logger.warning(
+            f"Неудачная попытка аутентификации для пользователя: {user_email}"
+        )
         return None
+
+    logger.info(
+        f"Успешная аутентификация пользователя: {getattr(user, 'email', 'unknown')}"
+    )
     return user
-
-
-def set_tokens(response: Response, user_id: int) -> None:
-    """Устанавливает JWT токены в HTTP cookies с безопасными настройками.
-
-    Создает access и refresh токены для указанного пользователя и устанавливает
-    их в HTTP cookies с защищенными настройками:
-    - httponly=True: защита от XSS атак
-    - secure=True: передача только по HTTPS
-    - samesite="lax": защита от CSRF атак
-
-    Args:
-        response: HTTP ответ FastAPI для установки cookies.
-        user_id: Идентификатор пользователя для создания токенов.
-
-    Returns:
-        None: Функция изменяет response объект напрямую.
-
-    Note:
-        Cookies устанавливаются с ключами:
-        - 'user_access_token': для access токена
-        - 'user_refresh_token': для refresh токена
-    """
-    new_tokens = create_tokens(data={"sub": str(user_id)})
-    access_token = new_tokens.get("access_token")
-    refresh_token = new_tokens.get("refresh_token")
-
-    response.set_cookie(
-        key="user_access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-    )
-
-    response.set_cookie(
-        key="user_refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-    )
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_password_hash(password: str) -> str:
@@ -147,6 +97,7 @@ def get_password_hash(password: str) -> str:
     Returns:
         str: Хешированный пароль.
     """
+    logger.debug("Хеширование пароля пользователя")
     return pwd_context.hash(password)
 
 
