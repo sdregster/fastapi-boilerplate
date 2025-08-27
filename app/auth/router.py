@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dao import UsersDAO
 from app.auth.models import User
-from app.auth.schemas import EmailModel, SUserAddDB, SUserAuth, SUserInfo, SUserRegister
+from app.auth.schemas import SUserAddDB, SUserAuth, SUserInfo, SUserRegister, UserModel
 from app.auth.utils import authenticate_user
 from app.dependencies.auth_dep import (
     get_current_admin_user,
@@ -21,30 +21,32 @@ router = APIRouter()
 
 @router.post("/register/")
 async def register_user(
-    user_data: SUserRegister, session: AsyncSession = Depends(get_session_with_commit)
+    user_data: SUserRegister,
+    session: AsyncSession = Depends(get_session_with_commit),
+    current_admin: User = Depends(get_current_admin_user),
 ) -> dict:
     """Регистрирует нового пользователя.
+    * только для администраторов и суперадминистраторов
 
     Args:
         user_data: Данные для регистрации пользователя.
         session: Сессия базы данных.
+        current_admin: Текущий администратор, выполняющий регистрацию.
 
     Returns:
         dict: Сообщение об успешной регистрации.
 
     Raises:
-        UserAlreadyExistsException: Если пользователь с таким email уже существует.
+        UserAlreadyExistsException: Если пользователь с таким логином уже существует.
     """
-    logger.info(f"Попытка регистрации пользователя с email: {user_data.email}")
-
     # Проверка существования пользователя
     user_dao = UsersDAO(session)
 
     existing_user = await user_dao.find_one_or_none(
-        filters=EmailModel(email=user_data.email)
+        filters=UserModel(login=user_data.login)
     )
     if existing_user:
-        logger.warning(f"Попытка регистрации с существующим email: {user_data.email}")
+        logger.warning(f"Попытка регистрации с существующим логином: {user_data.login}")
         raise UserAlreadyExistsException
 
     # Подготовка данных для добавления
@@ -53,9 +55,7 @@ async def register_user(
 
     # Добавление пользователя
     await user_dao.add(values=SUserAddDB(**user_data_dict))
-
-    logger.info(f"Пользователь успешно зарегистрирован: {user_data.email}")
-    return {"message": "Вы успешно зарегистрированы!"}
+    return {"message": "Пользователь успешно зарегистрирован!"}
 
 
 @router.post("/login/")
@@ -73,18 +73,18 @@ async def auth_user(
         dict: Сообщение об успешной авторизации.
 
     Raises:
-        IncorrectEmailOrPasswordException: Если email или пароль неверны.
+        IncorrectEmailOrPasswordException: Если логин или пароль неверны.
     """
-    logger.info(f"Попытка входа пользователя: {user_data.email}")
+    logger.info(f"Попытка входа пользователя: {user_data.login}")
 
     users_dao = UsersDAO(session)
-    user = await users_dao.find_one_or_none(filters=EmailModel(email=user_data.email))
+    user = await users_dao.find_one_or_none(filters=UserModel(login=user_data.login))
 
     if not (user and await authenticate_user(user=user, password=user_data.password)):
-        logger.warning(f"Неудачная попытка входа для пользователя: {user_data.email}")
+        logger.warning(f"Неудачная попытка входа для пользователя: {user_data.login}")
         raise IncorrectEmailOrPasswordException
 
-    logger.info(f"Пользователь успешно вошел в систему: {user_data.email}")
+    logger.info(f"Пользователь успешно вошел в систему: {user_data.login}")
     return {"ok": True, "message": "Авторизация успешна!"}
 
 
@@ -98,7 +98,7 @@ async def get_me(user_data: User = Depends(get_current_user)) -> SUserInfo:
     Returns:
         SUserInfo: Информация о пользователе.
     """
-    logger.debug(f"Запрос информации о пользователе: {user_data.email}")
+    logger.debug(f"Запрос информации о пользователе: {user_data.login}")
     return SUserInfo.model_validate(user_data)
 
 
@@ -107,7 +107,8 @@ async def get_all_users(
     session: AsyncSession = Depends(get_session_with_commit),
     user_data: User = Depends(get_current_admin_user),
 ) -> List[SUserInfo]:
-    """Возвращает список всех пользователей (только для администраторов).
+    """Возвращает список всех пользователей.
+    * только для администраторов и суперадминистраторов
 
     Args:
         session: Сессия базы данных.
@@ -116,5 +117,5 @@ async def get_all_users(
     Returns:
         List[SUserInfo]: Список всех пользователей.
     """
-    logger.info(f"Администратор {user_data.email} запросил список всех пользователей")
+    logger.info(f"Администратор {user_data.login} запросил список всех пользователей")
     return await UsersDAO(session).find_all()

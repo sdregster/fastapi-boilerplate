@@ -76,14 +76,14 @@ async def authenticate_user(user, password: str) -> Optional[object]:
         or verify_password(plain_password=password, hashed_password=user.password)
         is False
     ):
-        user_email = getattr(user, "email", "unknown")
+        user_login = getattr(user, "login", "unknown")
         logger.warning(
-            f"Неудачная попытка аутентификации для пользователя: {user_email}"
+            f"Неудачная попытка аутентификации для пользователя: {user_login}"
         )
         return None
 
     logger.info(
-        f"Успешная аутентификация пользователя: {getattr(user, 'email', 'unknown')}"
+        f"Успешная аутентификация пользователя: {getattr(user, 'login', 'unknown')}"
     )
     return user
 

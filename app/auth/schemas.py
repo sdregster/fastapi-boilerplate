@@ -1,70 +1,24 @@
-import re
 from typing import Self
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    EmailStr,
-    Field,
-    computed_field,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.auth.utils import get_password_hash
 
 
-class EmailModel(BaseModel):
-    """Базовая модель с email полем.
-
-    Attributes:
-        email: Электронная почта пользователя.
-    """
-
-    email: EmailStr = Field(description="Электронная почта")
-    model_config = ConfigDict(from_attributes=True)
-
-
-class UserBase(EmailModel):
+class UserModel(BaseModel):
     """Базовая модель пользователя.
 
     Attributes:
-        phone_number: Номер телефона в международном формате.
-        first_name: Имя пользователя.
-        last_name: Фамилия пользователя.
+        login: Логин пользователя.
     """
 
-    phone_number: str = Field(
-        description="Номер телефона в международном формате, начинающийся с '+'"
+    login: str = Field(
+        min_length=3, max_length=50, description="Логин, от 3 до 50 символов"
     )
-    first_name: str = Field(
-        min_length=2, max_length=50, description="Имя, от 2 до 50 символов"
-    )
-    last_name: str = Field(
-        min_length=2, max_length=50, description="Фамилия, от 2 до 50 символов"
-    )
-
-    @field_validator("phone_number")
-    def validate_phone_number(cls, value: str) -> str:
-        """Валидирует номер телефона.
-
-        Args:
-            value: Номер телефона для валидации.
-
-        Returns:
-            str: Валидный номер телефона.
-
-        Raises:
-            ValueError: Если номер телефона не соответствует формату.
-        """
-        if not re.match(r"^\+\d{5,15}$", value):
-            raise ValueError(
-                'Номер телефона должен начинаться с "+" и содержать от 5 до 15 цифр'
-            )
-        return value
+    model_config = ConfigDict(from_attributes=True)
 
 
-class SUserRegister(UserBase):
+class SUserRegister(UserModel):
     """Схема регистрации пользователя.
 
     Attributes:
@@ -97,7 +51,7 @@ class SUserRegister(UserBase):
         return self
 
 
-class SUserAddDB(UserBase):
+class SUserAddDB(UserModel):
     """Схема добавления пользователя в базу данных.
 
     Attributes:
@@ -107,7 +61,20 @@ class SUserAddDB(UserBase):
     password: str = Field(min_length=5, description="Пароль в формате HASH-строки")
 
 
-class SUserAuth(EmailModel):
+class SUserCreateWithRole(UserModel):
+    """Схема создания пользователя с указанием роли.
+
+    Attributes:
+        password: Хешированный пароль пользователя.
+        role_id: ID роли пользователя.
+    """
+
+    password: str = Field(min_length=5, description="Пароль в формате HASH-строки")
+    role_id: int = Field(description="ID роли пользователя")
+
+
+
+class SUserAuth(UserBase):
     """Схема аутентификации пользователя.
 
     Attributes:
@@ -119,7 +86,7 @@ class SUserAuth(EmailModel):
     )
 
 
-class RoleModel(BaseModel):
+class SRoleModel(BaseModel):
     """Модель роли.
 
     Attributes:
@@ -132,7 +99,17 @@ class RoleModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SUserInfo(UserBase):
+class SRoleCreate(BaseModel):
+    """Схема создания роли.
+
+    Attributes:
+        name: Название роли.
+    """
+
+    name: str = Field(description="Название роли")
+
+
+class SUserInfo(UserModel):
     """Схема информации о пользователе.
 
     Attributes:
@@ -141,9 +118,9 @@ class SUserInfo(UserBase):
     """
 
     id: int = Field(description="Идентификатор пользователя")
-    role: RoleModel = Field(exclude=True)
+    role: SRoleModel = Field(exclude=True)
 
-    @computed_field
+    @property
     def role_name(self) -> str:
         """Возвращает название роли пользователя.
 
@@ -152,7 +129,7 @@ class SUserInfo(UserBase):
         """
         return self.role.name
 
-    @computed_field
+    @property
     def role_id(self) -> int:
         """Возвращает ID роли пользователя.
 

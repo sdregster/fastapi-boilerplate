@@ -41,6 +41,18 @@ class DatabaseConfig(BaseModel):
     }
 
 
+class SuperAdminConfig(BaseModel):
+    """Конфигурация суперадминистратора.
+
+    Attributes:
+        login: Логин суперадминистратора.
+        password: Пароль суперадминистратора.
+    """
+
+    login: str
+    password: str
+
+
 class LoggingConfig(BaseModel):
     """Конфигурация для логирования приложения.
 
@@ -78,6 +90,7 @@ class Settings(BaseSettings):
         run: Настройки запуска приложения (хост, порт).
         db: Конфигурация базы данных (URL, пулы соединений).
         logging: Настройки логирования (уровень, формат, папка).
+        superadmin: Конфигурация суперадминистратора (логин, пароль).
 
     Environment Variables:
         Используется префикс APP_CONFIG__ и разделитель __ для вложенности:
@@ -88,6 +101,8 @@ class Settings(BaseSettings):
         - APP_CONFIG__LOGGING__DIRECTORY: папка для логов
         - APP_CONFIG__LOGGING__MAX_SIZE: максимальный размер файла лога
         - APP_CONFIG__LOGGING__BACKUP_COUNT: количество файлов бэкапа
+        - APP_CONFIG__SUPERADMIN__LOGIN: логин суперадминистратора
+        - APP_CONFIG__SUPERADMIN__PASSWORD: пароль суперадминистратора
 
     Config Files:
         Загружает настройки из файлов в порядке приоритета:
@@ -106,6 +121,7 @@ class Settings(BaseSettings):
     run: RunConfig = RunConfig()
     db: DatabaseConfig
     logging: LoggingConfig = LoggingConfig()
+    superadmin: SuperAdminConfig
 
 
 settings = Settings()

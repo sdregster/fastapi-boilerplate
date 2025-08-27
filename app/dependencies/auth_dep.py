@@ -45,9 +45,9 @@ async def get_current_user(
     try:
         username, password = decode_basic_auth(authorization_header)
 
-        # Ищем пользователя по email (username)
+        # Ищем пользователя по логину (username)
         user_dao = UsersDAO(session)
-        user = await user_dao.find_one_or_none(filters={"email": username})
+        user = await user_dao.find_one_or_none(filters={"login": username})
 
         if not user:
             raise HTTPException(
