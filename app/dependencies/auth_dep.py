@@ -2,10 +2,16 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.constants import (
+    AUTH_ERROR_MESSAGE,
+    AUTH_REQUIRED_MESSAGE,
+    INVALID_CREDENTIALS_MESSAGE,
+)
 from app.auth.dao import UsersDAO
+from app.auth.enums import UserRole
 from app.auth.models import User
 from app.auth.schemas import SDynamicFilter
-from app.auth.utils import decode_basic_auth
+from app.auth.utils import authenticate_user, decode_basic_auth
 from app.dependencies.dao_dep import get_session_without_commit
 from app.exceptions import (
     ForbiddenException,
@@ -43,35 +49,33 @@ async def get_current_user(
     if not authorization_header:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Требуется аутентификация",
+            detail=AUTH_REQUIRED_MESSAGE,
             headers={"WWW-Authenticate": "Basic"},
         )
 
     try:
         username, password = decode_basic_auth(authorization_header)
 
-        # Ищем пользователя по логину (username)
+        # Ищем пользователя по логину (username) с загруженной ролью
         user_dao = UsersDAO(session)
         user = await user_dao.find_one_or_none(
-            filters=SDynamicFilter.create(login=username)
+            filters=SDynamicFilter.create(login=username), load_relationships=["role"]
         )
 
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверные учетные данные",
+                detail=INVALID_CREDENTIALS_MESSAGE,
                 headers={"WWW-Authenticate": "Basic"},
             )
 
         # Проверяем пароль
-        from app.auth.utils import authenticate_user
-
         authenticated_user = await authenticate_user(user, password)
 
         if not authenticated_user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверные учетные данные",
+                detail=INVALID_CREDENTIALS_MESSAGE,
                 headers={"WWW-Authenticate": "Basic"},
             )
 
@@ -82,7 +86,7 @@ async def get_current_user(
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Ошибка аутентификации",
+            detail=AUTH_ERROR_MESSAGE,
             headers={"WWW-Authenticate": "Basic"},
         )
 
@@ -101,6 +105,25 @@ async def get_current_admin_user(
     Raises:
         ForbiddenException: Если у пользователя нет прав администратора.
     """
-    if current_user.role.id in [3, 4]:
+    if UserRole.is_admin(current_user.role.id):
+        return current_user
+    raise ForbiddenException
+
+
+async def get_current_super_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Проверяет права пользователя как суперадминистратора.
+
+    Args:
+        current_user: Текущий пользователь для проверки прав.
+
+    Returns:
+        User: Пользователь с правами суперадминистратора.
+
+    Raises:
+        ForbiddenException: Если у пользователя нет прав суперадминистратора.
+    """
+    if current_user.role.id == UserRole.SUPER_ADMIN:
         return current_user
     raise ForbiddenException
