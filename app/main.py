@@ -3,6 +3,11 @@ from typing import AsyncGenerator
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import (
+    get_redoc_html,
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+)
 from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -39,6 +44,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Стартовая сборка FastAPI",
+        docs_url=None,
+        redoc_url=None,
         description=(
             "Современный FastAPI бойлерплейт с SQLAlchemy 2. "
             "Система безопасности, модульная архитектура, "
@@ -88,6 +95,28 @@ def register_routers(app: FastAPI) -> None:
         """
         logger.debug("📄 Запрос главной страницы")
         return {"message": "Hello World"}
+
+    @root_router.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url=app.openapi_url,
+            title=app.title + " - Swagger UI",
+            oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+            swagger_js_url="/static/swagger-ui-bundle.js",
+            swagger_css_url="/static/swagger-ui.css",
+        )
+
+    @root_router.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
+    async def swagger_ui_redirect():
+        return get_swagger_ui_oauth2_redirect_html()
+
+    @root_router.get("/redoc", include_in_schema=False)
+    async def redoc_html():
+        return get_redoc_html(
+            openapi_url=app.openapi_url,
+            title=app.title + " - ReDoc",
+            redoc_js_url="/static/redoc.standalone.js",
+        )
 
     # Подключение роутеров
     app.include_router(root_router, tags=["root"])
