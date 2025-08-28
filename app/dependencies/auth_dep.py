@@ -1,4 +1,5 @@
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPBasic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dao import UsersDAO
@@ -9,6 +10,9 @@ from app.dependencies.dao_dep import get_session_without_commit
 from app.exceptions import (
     ForbiddenException,
 )
+
+# Конфигурация безопасности для Swagger UI
+security_config = HTTPBasic()
 
 
 async def get_current_user(

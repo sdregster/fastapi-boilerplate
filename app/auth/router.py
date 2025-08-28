@@ -16,6 +16,7 @@ from app.auth.utils import authenticate_user
 from app.dependencies.auth_dep import (
     get_current_admin_user,
     get_current_user,
+    security_config,
 )
 from app.dependencies.dao_dep import get_session_with_commit, get_session_without_commit
 from app.exceptions import IncorrectEmailOrPasswordException, UserAlreadyExistsException
@@ -23,6 +24,9 @@ from app.utils import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+# Добавляем схему безопасности для Swagger UI
+router.dependencies = [Depends(security_config)]
 
 
 @router.post("/register/")
@@ -112,7 +116,7 @@ async def get_me(user_data: User = Depends(get_current_user)) -> SUserInfo:
 
 @router.get("/all_users/")
 async def get_all_users(
-    session: AsyncSession = Depends(get_session_with_commit),
+    session: AsyncSession = Depends(get_session_without_commit),
     user_data: User = Depends(get_current_admin_user),
 ) -> List[SUserInfo]:
     """Возвращает список всех пользователей.
