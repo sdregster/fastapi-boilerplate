@@ -10,7 +10,6 @@
 """
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -40,28 +39,25 @@ def check_environment_variables() -> bool:
     """
     print("🔍 Проверка переменных окружения...")
 
-    required_vars = [
-        "APP_CONFIG__SUPERADMIN__LOGIN",
-        "APP_CONFIG__SUPERADMIN__PASSWORD",
-    ]
-    missing_vars = []
+    try:
+        # Используем настройки из основного приложения
+        if not settings.superadmin.login or not settings.superadmin.password:
+            print("❌ Отсутствуют переменные окружения для суперадминистратора")
+            print("💡 Добавьте в .env:")
+            print("   APP_CONFIG__SUPERADMIN__LOGIN=your_value")
+            print("   APP_CONFIG__SUPERADMIN__PASSWORD=your_value")
+            return False
 
-    for var in required_vars:
-        if not os.getenv(var):
-            missing_vars.append(var)
+        print(f"✅ APP_CONFIG__SUPERADMIN__LOGIN: {settings.superadmin.login}")
+        print(
+            f"✅ APP_CONFIG__SUPERADMIN__PASSWORD: {'*' * len(settings.superadmin.password)}"
+        )
+        return True
 
-    if missing_vars:
-        print(f"❌ Отсутствуют переменные окружения: {', '.join(missing_vars)}")
-        print("💡 Добавьте их в файл .env:")
-        for var in missing_vars:
-            print(f"   {var}=your_value")
+    except Exception as e:
+        print(f"❌ Ошибка загрузки конфигурации: {e}")
+        print("💡 Проверьте правильность .env файла")
         return False
-
-    login = os.getenv("APP_CONFIG__SUPERADMIN__LOGIN")
-    print(f"✅ APP_CONFIG__SUPERADMIN__LOGIN: {login}")
-    password = os.getenv("APP_CONFIG__SUPERADMIN__PASSWORD", "")
-    print(f"✅ APP_CONFIG__SUPERADMIN__PASSWORD: {'*' * len(password)}")
-    return True
 
 
 async def check_database_connection() -> bool:
@@ -245,8 +241,8 @@ async def main() -> None:
     print("   ✅ Созданы роли пользователей")
     print("   ✅ Создан суперадминистратор")
     print("\n🔐 Данные для входа суперадминистратора:")
-    print(f"   Логин: {os.getenv('APP_CONFIG__SUPERADMIN__LOGIN')}")
-    print(f"   Пароль: {'*' * len(os.getenv('APP_CONFIG__SUPERADMIN__PASSWORD', ''))}")
+    print(f"   Логин: {settings.superadmin.login}")
+    print(f"   Пароль: {'*' * len(settings.superadmin.password)}")
     print("\n🚀 Для запуска приложения выполните:")
     print("   uvicorn app.main:app --reload")
 
