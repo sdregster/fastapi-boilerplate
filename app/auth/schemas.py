@@ -21,9 +21,14 @@ class UserModel(BaseModel):
 class SUserRegister(UserModel):
     """Схема регистрации пользователя.
 
+    Примечание: Регистрация доступна только администраторам.
+    Администраторы могут создавать пользователей с ролями Guest и User.
+    Суперадминистраторы могут создавать пользователей с любыми ролями.
+
     Attributes:
         password: Пароль пользователя.
         confirm_password: Подтверждение пароля.
+        role_id: ID роли пользователя (1=Guest, 2=User, 3=Admin, 4=SuperAdmin).
     """
 
     password: str = Field(
@@ -31,6 +36,11 @@ class SUserRegister(UserModel):
     )
     confirm_password: str = Field(
         min_length=4, max_length=50, description="Повторите пароль"
+    )
+    role_id: int = Field(
+        ge=1,
+        le=4,
+        description="ID роли пользователя (1=Guest, 2=User, 3=Admin, 4=SuperAdmin)",
     )
 
     @model_validator(mode="after")
@@ -41,10 +51,18 @@ class SUserRegister(UserModel):
             Self: Экземпляр модели с хешированным паролем.
 
         Raises:
-            ValueError: Если пароли не совпадают.
+            ValueError: Если пароли не совпадают или указана недопустимая роль.
         """
         if self.password != self.confirm_password:
             raise ValueError("Пароли не совпадают")
+
+        # Проверяем, что указанная роль находится в допустимом диапазоне
+        if self.role_id not in [1, 2, 3, 4]:
+            raise ValueError(
+                "Недопустимый ID роли. Допустимые значения: "
+                "1 (Guest), 2 (User), 3 (Admin), 4 (SuperAdmin)"
+            )
+
         self.password = get_password_hash(
             self.password
         )  # хешируем пароль до сохранения в базе данных
@@ -70,7 +88,11 @@ class SUserCreateWithRole(UserModel):
     """
 
     password: str = Field(min_length=5, description="Пароль в формате HASH-строки")
-    role_id: int = Field(description="ID роли пользователя")
+    role_id: int = Field(
+        ge=1,
+        le=4,
+        description="ID роли пользователя (1=Guest, 2=User, 3=Admin, 4=SuperAdmin)",
+    )
 
 
 class SDynamicFilter(BaseModel):
@@ -154,7 +176,8 @@ class SUserInfo(UserModel):
     """
 
     id: int = Field(description="Идентификатор пользователя")
-    role: SRoleModel = Field(exclude=True)
+    role: SRoleModel = Field(description="Роль пользователя")
+    model_config = ConfigDict(from_attributes=True)
 
     @property
     def role_name(self) -> str:
