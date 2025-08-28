@@ -48,7 +48,9 @@ async def get_current_user(
 
         # Ищем пользователя по логину (username)
         user_dao = UsersDAO(session)
-        user = await user_dao.find_one_or_none(filters=SDynamicFilter.create(login=username))
+        user = await user_dao.find_one_or_none(
+            filters=SDynamicFilter.create(login=username)
+        )
 
         if not user:
             raise HTTPException(

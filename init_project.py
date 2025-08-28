@@ -49,9 +49,8 @@ def check_environment_variables() -> bool:
             return False
 
         print(f"✅ APP_CONFIG__SUPERADMIN__LOGIN: {settings.superadmin.login}")
-        print(
-            f"✅ APP_CONFIG__SUPERADMIN__PASSWORD: {'*' * len(settings.superadmin.password)}"
-        )
+        password = len(settings.superadmin.password)
+        print(f"✅ APP_CONFIG__SUPERADMIN__PASSWORD: {'*' * len(password)}")
         return True
 
     except Exception as e:
