@@ -108,8 +108,8 @@ async def create_initial_data() -> bool:
             print("🔍 Роли не найдены, создаем новые...")
             # Создаем роли
             roles_data = [
-                SRoleCreate(name="User"),
                 SRoleCreate(name="Guest"),
+                SRoleCreate(name="User"),
                 SRoleCreate(name="Admin"),
                 SRoleCreate(name="SuperAdmin"),
             ]
