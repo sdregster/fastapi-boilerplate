@@ -44,12 +44,12 @@ def check_environment_variables() -> bool:
         if not settings.superadmin.login or not settings.superadmin.password:
             print("❌ Отсутствуют переменные окружения для суперадминистратора")
             print("💡 Добавьте в .env:")
-            print("   APP_CONFIG__SUPERADMIN__LOGIN=your_value")
-            print("   APP_CONFIG__SUPERADMIN__PASSWORD=your_value")
+            print("   APP_CONFIG__SUPERADMIN__LOGIN=your_superadmin_login")
+            print("   APP_CONFIG__SUPERADMIN__PASSWORD=your_superadmin_password")
             return False
 
         print(f"✅ APP_CONFIG__SUPERADMIN__LOGIN: {settings.superadmin.login}")
-        password = len(settings.superadmin.password)
+        password = settings.superadmin.password
         print(f"✅ APP_CONFIG__SUPERADMIN__PASSWORD: {'*' * len(password)}")
         return True
 
