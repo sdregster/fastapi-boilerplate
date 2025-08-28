@@ -67,7 +67,7 @@ def create_app() -> FastAPI:
     logger.debug("✅ CORS middleware настроен")
 
     # Монтирование статических файлов
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount("/static", StaticFiles(directory="static"), name="static")
     logger.debug("✅ Статические файлы подключены")
 
     # Регистрация роутеров
