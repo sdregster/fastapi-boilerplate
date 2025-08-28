@@ -1,10 +1,13 @@
 import base64
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
 from app.utils import get_logger
+
+if TYPE_CHECKING:
+    from app.auth.models import User
 
 logger = get_logger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -61,7 +64,7 @@ def decode_basic_auth(authorization_header: str) -> Tuple[str, str]:
         )
 
 
-async def authenticate_user(user, password: str) -> Optional[object]:
+async def authenticate_user(user, password: str) -> Optional["User"]:
     """Аутентифицирует пользователя по паролю.
 
     Args:
@@ -69,13 +72,14 @@ async def authenticate_user(user, password: str) -> Optional[object]:
         password: Пароль для проверки.
 
     Returns:
-        object | None: Пользователь при успешной аутентификации, None в противном случае
+        User | None: Пользователь при успешной аутентификации, None в противном случае
     """
-    if (
-        not user
-        or verify_password(plain_password=password, hashed_password=user.password)
-        is False
-    ):
+    if not user:
+        logger.warning("Попытка аутентификации несуществующего пользователя")
+        return None
+
+    # Проверяем пароль
+    if not verify_password(plain_password=password, hashed_password=user.password):
         user_login = getattr(user, "login", "unknown")
         logger.warning(
             f"Неудачная попытка аутентификации для пользователя: {user_login}"
