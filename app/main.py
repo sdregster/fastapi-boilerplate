@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import (
     get_redoc_html,
@@ -65,6 +65,44 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     logger.debug("✅ CORS middleware настроен")
+
+    # Обработчики исключений
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        """Обрабатывает HTTP исключения FastAPI и логирует их.
+
+        - 4xx логируются как WARNING
+        - 5xx логируются как ERROR (попадает в error.log)
+        """
+        if exc.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+            msg = (
+                f"HTTP {exc.status_code} ошибка для {request.method} {request.url}: "
+                f"{exc.detail}"
+            )
+            logger.exception(msg)
+        else:
+            msg = (
+                f"HTTP {exc.status_code} для {request.method} {request.url}: "
+                f"{exc.detail}"
+            )
+            logger.warning(msg)
+        return ORJSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception):
+        """Глобальный обработчик неперехваченных исключений.
+
+        Логирует ошибку с трейсбеком и возвращает 500.
+        """
+        msg = f"Неперехваченное исключение при {request.method} {request.url}: {exc}"
+        logger.exception(msg)
+        return ORJSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal Server Error"},
+        )
 
     # Монтирование статических файлов
     app.mount("/static", StaticFiles(directory="static"), name="static")
