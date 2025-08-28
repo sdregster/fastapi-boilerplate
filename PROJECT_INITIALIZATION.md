@@ -10,16 +10,11 @@
 APP_CONFIG__DB__URL=postgresql+asyncpg://username:password@localhost:5432/dbname
 
 # Суперадминистратор
-SUPERADMIN_LOGIN=admin
-SUPERADMIN_PASSWORD=secure_password_123
+APP_CONFIG__SUPERADMIN__LOGIN=admin
+APP_CONFIG__SUPERADMIN__PASSWORD=secure_password_123
 ```
 
-### 2. Выполнение миграций
-```bash
-alembic upgrade head
-```
-
-### 3. Запуск скрипта инициализации
+### 2. Запуск скрипта инициализации
 ```bash
 python init_project.py
 ```
