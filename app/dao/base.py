@@ -63,11 +63,14 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при поиске записи с ID {data_id}: {e}")
             raise
 
-    async def find_one_or_none(self, filters: "SDynamicFilter"):
+    async def find_one_or_none(
+        self, filters: "SDynamicFilter", load_relationships: list[str] | None = None
+    ):
         """Находит одну запись по фильтрам.
 
         Args:
             filters: SDynamicFilter с фильтрами для поиска.
+            load_relationships: Список имен связанных объектов для загрузки *опционально
 
         Returns:
             T | None: Найденная запись или None.
@@ -80,7 +83,21 @@ class BaseDAO(Generic[T]):
             f"Поиск одной записи {self.model.__name__} по фильтрам: {filter_dict}"
         )
         try:
-            query = select(self.model).filter_by(**filter_dict)
+            query = select(self.model)
+
+            # Добавляем загрузку связанных объектов, если указаны
+            if load_relationships:
+                from sqlalchemy.orm import selectinload
+
+                for relationship in load_relationships:
+                    if hasattr(self.model, relationship):
+                        query = query.options(
+                            selectinload(getattr(self.model, relationship))
+                        )
+
+            # Применяем фильтры
+            query = query.filter_by(**filter_dict)
+
             result = await self._session.execute(query)
             record = result.scalar_one_or_none()
             status_msg = "найдена" if record else "не найдена"
@@ -91,11 +108,16 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при поиске записи по фильтрам {filter_dict}: {e}")
             raise
 
-    async def find_all(self, filters: SDynamicFilter | None = None):
+    async def find_all(
+        self,
+        filters: SDynamicFilter | None = None,
+        load_relationships: list[str] | None = None,
+    ):
         """Находит все записи по фильтрам.
 
         Args:
-            filters: SDynamicFilter с фильтрами для поиска (опционально).
+            filters: SDynamicFilter с фильтрами для поиска *опционально
+            load_relationships: Список имен связанных объектов для загрузки *опционально
 
         Returns:
             List[T]: Список найденных записей.
@@ -108,7 +130,22 @@ class BaseDAO(Generic[T]):
             f"Поиск всех записей {self.model.__name__} по фильтрам: {filter_dict}"
         )
         try:
-            query = select(self.model).filter_by(**filter_dict)
+            query = select(self.model)
+
+            # Добавляем загрузку связанных объектов, если указаны
+            if load_relationships:
+                from sqlalchemy.orm import selectinload
+
+                for relationship in load_relationships:
+                    if hasattr(self.model, relationship):
+                        query = query.options(
+                            selectinload(getattr(self.model, relationship))
+                        )
+
+            # Применяем фильтры
+            if filter_dict:
+                query = query.filter_by(**filter_dict)
+
             result = await self._session.execute(query)
             records = result.scalars().all()
             logger.info(f"Найдено {len(records)} записей.")
