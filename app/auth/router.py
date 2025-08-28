@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dao import UsersDAO
 from app.auth.models import User
-from app.auth.schemas import SUserAddDB, SUserAuth, SUserInfo, SUserRegister, UserModel
+from app.auth.schemas import SDynamicFilter, SUserAddDB, SUserAuth, SUserInfo, SUserRegister, UserModel
 from app.auth.utils import authenticate_user
 from app.dependencies.auth_dep import (
     get_current_admin_user,
@@ -43,7 +43,7 @@ async def register_user(
     user_dao = UsersDAO(session)
 
     existing_user = await user_dao.find_one_or_none(
-        filters=UserModel(login=user_data.login)
+        filters=SDynamicFilter.create(login=user_data.login)
     )
     if existing_user:
         logger.warning(f"Попытка регистрации с существующим логином: {user_data.login}")
@@ -78,7 +78,7 @@ async def auth_user(
     logger.info(f"Попытка входа пользователя: {user_data.login}")
 
     users_dao = UsersDAO(session)
-    user = await users_dao.find_one_or_none(filters=UserModel(login=user_data.login))
+    user = await users_dao.find_one_or_none(filters=SDynamicFilter.create(login=user_data.login))
 
     if not (user and await authenticate_user(user=user, password=user_data.password)):
         logger.warning(f"Неудачная попытка входа для пользователя: {user_data.login}")

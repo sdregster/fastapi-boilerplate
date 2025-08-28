@@ -9,6 +9,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.schemas import SDynamicFilter
+
 from .database import Base
 
 T = TypeVar("T", bound=Base)
@@ -61,11 +63,11 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при поиске записи с ID {data_id}: {e}")
             raise
 
-    async def find_one_or_none(self, filters: BaseModel):
+    async def find_one_or_none(self, filters: "SDynamicFilter"):
         """Находит одну запись по фильтрам.
 
         Args:
-            filters: Pydantic модель с фильтрами для поиска.
+            filters: SDynamicFilter с фильтрами для поиска.
 
         Returns:
             T | None: Найденная запись или None.
@@ -73,7 +75,7 @@ class BaseDAO(Generic[T]):
         Raises:
             SQLAlchemyError: При ошибке базы данных.
         """
-        filter_dict = filters.model_dump(exclude_unset=True)
+        filter_dict = filters.get_active_filters() if filters else {}
         logger.info(
             f"Поиск одной записи {self.model.__name__} по фильтрам: {filter_dict}"
         )
@@ -89,11 +91,11 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при поиске записи по фильтрам {filter_dict}: {e}")
             raise
 
-    async def find_all(self, filters: BaseModel | None = None):
+    async def find_all(self, filters: SDynamicFilter | None = None):
         """Находит все записи по фильтрам.
 
         Args:
-            filters: Pydantic модель с фильтрами для поиска (опционально).
+            filters: SDynamicFilter с фильтрами для поиска (опционально).
 
         Returns:
             List[T]: Список найденных записей.
@@ -101,7 +103,7 @@ class BaseDAO(Generic[T]):
         Raises:
             SQLAlchemyError: При ошибке базы данных.
         """
-        filter_dict = filters.model_dump(exclude_unset=True) if filters else {}
+        filter_dict = filters.get_active_filters() if filters else {}
         logger.info(
             f"Поиск всех записей {self.model.__name__} по фильтрам: {filter_dict}"
         )
@@ -170,11 +172,11 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при добавлении нескольких записей: {e}")
             raise
 
-    async def update(self, filters: BaseModel, values: BaseModel):
+    async def update(self, filters: SDynamicFilter, values: BaseModel):
         """Обновляет записи по фильтрам.
 
         Args:
-            filters: Pydantic модель с фильтрами для поиска записей.
+            filters: SDynamicFilter с фильтрами для поиска записей.
             values: Pydantic модель с новыми данными.
 
         Returns:
@@ -183,7 +185,7 @@ class BaseDAO(Generic[T]):
         Raises:
             SQLAlchemyError: При ошибке базы данных.
         """
-        filter_dict = filters.model_dump(exclude_unset=True)
+        filter_dict = filters.get_active_filters()
         values_dict = values.model_dump(exclude_unset=True)
         logger.info(
             f"Обновление записей {self.model.__name__} по фильтру: {filter_dict} "
@@ -204,11 +206,11 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при обновлении записей: {e}")
             raise
 
-    async def delete(self, filters: BaseModel):
+    async def delete(self, filters: SDynamicFilter):
         """Удаляет записи по фильтрам.
 
         Args:
-            filters: Pydantic модель с фильтрами для поиска записей.
+            filters: SDynamicFilter с фильтрами для поиска записей.
 
         Returns:
             int: Количество удаленных записей.
@@ -217,7 +219,7 @@ class BaseDAO(Generic[T]):
             ValueError: Если не указаны фильтры для удаления.
             SQLAlchemyError: При ошибке базы данных.
         """
-        filter_dict = filters.model_dump(exclude_unset=True)
+        filter_dict = filters.get_active_filters()
         logger.info(f"Удаление записей {self.model.__name__} по фильтру: {filter_dict}")
         if not filter_dict:
             logger.error("Нужен хотя бы один фильтр для удаления.")
@@ -232,11 +234,11 @@ class BaseDAO(Generic[T]):
             logger.error(f"Ошибка при удалении записей: {e}")
             raise
 
-    async def count(self, filters: BaseModel | None = None):
+    async def count(self, filters: SDynamicFilter | None = None):
         """Подсчитывает количество записей по фильтрам.
 
         Args:
-            filters: Pydantic модель с фильтрами для поиска (опционально).
+            filters: SDynamicFilter с фильтрами для поиска (опционально).
 
         Returns:
             int: Количество записей.
@@ -244,7 +246,7 @@ class BaseDAO(Generic[T]):
         Raises:
             SQLAlchemyError: При ошибке базы данных.
         """
-        filter_dict = filters.model_dump(exclude_unset=True) if filters else {}
+        filter_dict = filters.get_active_filters() if filters else {}
         logger.info(
             f"Подсчет количества записей {self.model.__name__} "
             f"по фильтру: {filter_dict}"

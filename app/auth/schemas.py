@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Any, Dict, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -73,8 +73,44 @@ class SUserCreateWithRole(UserModel):
     role_id: int = Field(description="ID роли пользователя")
 
 
+class SDynamicFilter(BaseModel):
+    """Универсальная схема фильтрации для любых моделей.
 
-class SUserAuth(UserBase):
+    Attributes:
+        filters: Словарь фильтров в формате {поле: значение}.
+                 Поддерживает None значения для игнорирования поля.
+    """
+
+    filters: Dict[str, Any] = Field(
+        default_factory=dict, description="Фильтры в формате {поле: значение}"
+    )
+
+    @classmethod
+    def create(cls, **kwargs) -> "SDynamicFilter":
+        """Создает фильтр из именованных аргументов.
+
+        Args:
+            **kwargs: Поля фильтрации в виде именованных аргументов.
+
+        Returns:
+            SDynamicFilter: Новый экземпляр фильтра.
+
+        Examples:
+            >>> SDynamicFilter.create(login="admin", role_id=1)
+            >>> SDynamicFilter.create(name="SuperAdmin")
+        """
+        return cls(filters=kwargs)
+
+    def get_active_filters(self) -> Dict[str, Any]:
+        """Возвращает только активные фильтры (без None значений).
+
+        Returns:
+            Dict[str, Any]: Словарь активных фильтров.
+        """
+        return {k: v for k, v in self.filters.items() if v is not None}
+
+
+class SUserAuth(UserModel):
     """Схема аутентификации пользователя.
 
     Attributes:

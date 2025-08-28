@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dao import UsersDAO
 from app.auth.models import User
+from app.auth.schemas import SDynamicFilter
 from app.auth.utils import decode_basic_auth
 from app.dependencies.dao_dep import get_session_without_commit
 from app.exceptions import (
@@ -47,7 +48,7 @@ async def get_current_user(
 
         # Ищем пользователя по логину (username)
         user_dao = UsersDAO(session)
-        user = await user_dao.find_one_or_none(filters={"login": username})
+        user = await user_dao.find_one_or_none(filters=SDynamicFilter.create(login=username))
 
         if not user:
             raise HTTPException(

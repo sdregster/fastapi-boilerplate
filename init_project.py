@@ -23,6 +23,7 @@ sys.path.insert(0, str(project_root))
 # Импорты после изменения sys.path
 from app.auth.dao import RoleDAO, UsersDAO  # noqa: E402
 from app.auth.schemas import (  # noqa: E402
+    SDynamicFilter,
     SRoleCreate,
     SUserCreateWithRole,
 )
@@ -139,7 +140,7 @@ async def create_initial_data() -> bool:
             # Проверяем существование пользователя
             print("🔍 Проверяем существование пользователя...")
             existing_user = await user_dao.find_one_or_none(
-                filters={"login": settings.superadmin.login}
+                filters=SDynamicFilter.create(login=settings.superadmin.login)
             )
 
             if existing_user:
